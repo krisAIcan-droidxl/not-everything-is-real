@@ -7,7 +7,7 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 const clamp=T.MathUtils.clamp, mix=T.MathUtils.lerp;
 export const smooth=(a,b,x)=>{const t=clamp((x-a)/(b-a),0,1);return t*t*t*(t*(t*6-15)+10)};
 const rng=(i)=>{const n=Math.sin(i*127.1+311.7)*43758.5453;return n-Math.floor(n)};
-export function createSequence(){
+export function createSequence({photographicSurface=true}={}){
  const manager=new T.LoadingManager();let readyResolve;const ready=new Promise(resolve=>readyResolve=resolve);manager.onLoad=()=>{scene.visible=true;readyResolve()};
  const loadTexture=path=>{if(typeof window==='undefined')return new T.DataTexture(new Uint8Array([80,88,98,255]),1,1);const tex=new T.TextureLoader(manager).load(path);tex.colorSpace=T.SRGBColorSpace;return tex;};
  const scene=new T.Scene();scene.visible=typeof window==='undefined';scene.background=new T.Color('#030405');scene.fog=new T.FogExp2('#030405',.035);
@@ -61,7 +61,7 @@ export function createSequence(){
  const glow=new T.PointLight('#b7d2ca',3,5,2);glow.position.set(-2.5,1,1.2);scene.add(glow);
  // A dense, continuous anatomical surface is assembled from the source; no body fade.
  const points=humanTargets(),step=BODY_STEP;
- const photoUniforms={mediaAtlas,clock:signalClock,atlas:{value:loadTexture('/assets/person-atlas.webp')},progress:{value:0}};
+ const photoUniforms={mediaAtlas,clock:signalClock,atlas:{value:photographicSurface?loadTexture('/assets/person-atlas.webp'):new T.DataTexture(new Uint8Array([0,0,0,0]),1,1)},progress:{value:0}};
  photoUniforms.atlas.value.anisotropy=8;
  const assembly=points.map((target,i)=>formationParameters(target,rng(i+3)));
  const bodyGeo=new T.PlaneGeometry(step*3.8,step*.65);
@@ -70,7 +70,7 @@ export function createSequence(){
  const body=new T.InstancedMesh(bodyGeo,signalFilamentMaterial(mediaAtlas,signalClock,photoUniforms.progress),points.length);
  body.instanceMatrix.setUsage(T.DynamicDrawUsage);body.frustumCulled=false;scene.add(body);
  const dummy=new T.Object3D();
- const surfaceGeo=clothedSurface(),surfacePos=surfaceGeo.attributes.position;
+ const surfaceGeo=photographicSurface?clothedSurface():new T.PlaneGeometry(1,1),surfacePos=surfaceGeo.attributes.position;
  const lookup=new Map(points.map((v,i)=>[`${Math.round((v.x-1)/step)},${Math.round(v.y/step)},${Math.round(v.z/step)}`,i]));
  const surfaceAssembly=new Float32Array(surfacePos.count*3);
  for(let i=0;i<surfacePos.count;i++){

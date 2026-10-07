@@ -7,7 +7,7 @@
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
-    "test:gate02": "node scripts/verify-gate02.mjs && node scripts/verify-photographic.mjs"
+    "test:gate02": "node scripts/verify-gate02.mjs && node scripts/verify-photographic.mjs && node scripts/verify-orbit.mjs"
   },
   "dependencies": {
     "@vitejs/plugin-react": "latest",
