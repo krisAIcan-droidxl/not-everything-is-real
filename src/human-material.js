@@ -12,7 +12,7 @@ varying vec3 vHumanNormal;
 varying vec3 vAssembly;
 float easeGate(float a,float b,float x){float t=clamp((x-a)/(b-a),0.,1.);return t*t*t*(t*(t*6.-15.)+10.);}
 float assemblyAt(vec3 a){return a.z>.5?easeGate(.55+a.x*.015,.745+a.x*.015,gateProgress):easeGate(.245+a.y,.395+a.y,gateProgress);}
-float breakdownAt(vec3 pos,float r){float boundary=.89+.09*sin(pos.y*8.)+.05*sin(pos.y*19.);return easeGate(.78,.97,gateProgress)*easeGate(boundary,1.28,pos.x)*(r>.20?1.:0.);}
+float breakdownAt(vec3 pos,float r){float boundary=.98+.04*sin(pos.y*5.4)+.024*sin(pos.y*13.7);return easeGate(.78,.97,gateProgress)*easeGate(boundary,1.30,pos.x)*(r>.20?1.:0.);}
 vec4 atlasSample(vec2 uv,vec4 bounds){return texture2D(humanAtlas,mix(bounds.xy,bounds.zw,clamp(uv,vec2(.002),vec2(.998))));}
 vec3 photoAt(vec3 pos,vec3 normal){
  float portraitWidth=mix(1.30,1.02,easeGate(2.80,3.24,pos.y));
@@ -53,7 +53,7 @@ export function photographicMaterial(uniforms,{surface=false,reflection=false}={
   shader.vertexShader=shader.vertexShader.replace('#include <common>',`#include <common>\nattribute vec3 assembly;\n${surface?'':'attribute vec3 target;'}\nvarying vec3 vHumanPosition;varying vec3 vHumanNormal;varying vec3 vAssembly;`)
    .replace('#include <begin_vertex>',`#include <begin_vertex>\nvHumanPosition=${surface?'position':'target'};vHumanNormal=normal;vAssembly=assembly;`);
   shader.fragmentShader=shader.fragmentShader.replace('#include <common>',`#include <common>\n${common}`)
-   .replace('#include <color_fragment>',`#include <color_fragment>\n${surface?'if(assemblyAt(vAssembly)<.965||breakdownAt(vHumanPosition,vAssembly.x)>.16)discard;':''}\nvec3 photographed=photoAt(vHumanPosition,normalize(vHumanNormal));${surface?'diffuseColor.rgb*=photographed;':'vec3 signal=vAssembly.x>.985?vec3(.43,.12,.12):vAssembly.x>.96?vec3(.17,.41,.48):vec3(.35,.40,.45);float organized=easeGate(.4,.97,assemblyAt(vAssembly));float dissolved=breakdownAt(vHumanPosition,vAssembly.x);diffuseColor.rgb*=mix(signal,photographed,organized*(1.-dissolved*.65));'}${reflection?'diffuseColor.a*=exp(-vHumanPosition.y*1.5);':''}`);
+   .replace('#include <color_fragment>',`#include <color_fragment>\n${surface?'if(assemblyAt(vAssembly)<.965||breakdownAt(vHumanPosition,vAssembly.x)>.16)discard;':''}\nvec3 photographed=photoAt(vHumanPosition,normalize(vHumanNormal));${surface?'diffuseColor.rgb*=photographed;':'vec3 signal=vAssembly.x>.985?vec3(.43,.12,.12):vAssembly.x>.96?vec3(.17,.41,.48):vec3(.35,.40,.45);float organized=easeGate(.4,.97,assemblyAt(vAssembly));float dissolved=breakdownAt(vHumanPosition,vAssembly.x);diffuseColor.rgb*=mix(signal,photographed,organized*(1.-dissolved*.65));'}${reflection?'diffuseColor.a*=exp(-vHumanPosition.y*1.5);':surface?'totalEmissiveRadiance+=photographed*(.24+.10*easeGate(.30,.65,gateProgress));':'totalEmissiveRadiance+=signal*dissolved*.055;'}`);
  };
  material.customProgramCacheKey=()=>`gate02-photographic-${surface}-${reflection}`;
  return material;

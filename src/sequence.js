@@ -10,8 +10,14 @@ export function createSequence(){
  const manager=new T.LoadingManager();let readyResolve;const ready=new Promise(resolve=>readyResolve=resolve);manager.onLoad=()=>{scene.visible=true;readyResolve()};
  const loadTexture=path=>{if(typeof window==='undefined')return new T.DataTexture(new Uint8Array([80,88,98,255]),1,1);const tex=new T.TextureLoader(manager).load(path);tex.colorSpace=T.SRGBColorSpace;return tex;};
  const scene=new T.Scene();scene.visible=typeof window==='undefined';scene.background=new T.Color('#030405');scene.fog=new T.FogExp2('#030405',.035);
- const grey=new T.MeshStandardMaterial({color:'#262b30',roughness:.62,metalness:.12});
- const trim=new T.MeshStandardMaterial({color:'#101313',roughness:.3,metalness:.25});
+ // Shared micro-grain and restrained wear for aged injection-moulded casing.
+ const casingCanvas=document.createElement('canvas');casingCanvas.width=casingCanvas.height=256;const casingContext=casingCanvas.getContext('2d');
+ casingContext.fillStyle='#cacaca';casingContext.fillRect(0,0,256,256);
+ for(let i=0;i<2400;i++){casingContext.fillStyle=rng(i+401)>.5?'#b4b4b4':'#dedede';casingContext.fillRect(rng(i+402)*256,rng(i+403)*256,1,1);}
+ for(let i=0;i<35;i++){casingContext.fillStyle='#949494';casingContext.fillRect(rng(i+404)*256,rng(i+405)*256,1,2+rng(i+406)*11);}
+ const casingTexture=new T.CanvasTexture(casingCanvas);
+ const grey=new T.MeshStandardMaterial({color:'#343b43',roughness:.78,metalness:.08,bumpMap:casingTexture,bumpScale:.007});
+ const trim=new T.MeshStandardMaterial({color:'#14171a',roughness:.51,metalness:.12,bumpMap:casingTexture,bumpScale:.005});
  let currentParent=scene;
  const mesh=(geo,mat,pos,scale,parent=currentParent)=>{const m=new T.Mesh(geo,mat);m.position.set(...pos);if(scale)m.scale.set(...scale);parent.add(m);return m};
  const box=(s,r=.05)=>new RoundedBoxGeometry(...s,3,r);
@@ -34,8 +40,9 @@ export function createSequence(){
  currentParent=scene;
  const environment=createEnvironment(scene,loadTexture);
  scene.add(new T.HemisphereLight('#859dbb','#090b0f',.58));
- const key=new T.SpotLight('#b5c6da',45,25,.55,.7,1.5);key.position.set(-3,7,4);key.target.position.set(-1,1,0);scene.add(key,key.target);
- const rim=new T.PointLight('#88a8d0',26,12,2);rim.position.set(2.5,4,-3);scene.add(rim);
+ const key=new T.SpotLight('#b5c6da',90,25,.55,.7,1.5);key.position.set(-3,7,4);key.target.position.set(-2.35,.9,0);scene.add(key,key.target);
+ const rim=new T.PointLight('#88a8d0',42,12,2);rim.position.set(2.5,4,-3);scene.add(rim);
+ const fill=new T.SpotLight('#d1d2ce',0,12,.48,.9,2);fill.position.set(-.8,3.3,4.8);fill.target.position.set(1,1.65,0);scene.add(fill,fill.target);
  const glow=new T.PointLight('#b7d2ca',3,5,2);glow.position.set(-2.5,1,1.2);scene.add(glow);
  // A dense, continuous anatomical surface is assembled from the source; no body fade.
  const points=humanTargets(),step=BODY_STEP;
@@ -86,6 +93,8 @@ export function createSequence(){
   return v;
  });
  const foreground=points.map((v,i)=>v.x>1.35&&rng(i+31)>.985);
+ // Static distribution traits are calculated once, not on every scroll frame.
+ const shardTraits=points.map((v,i)=>[smooth(.98+.04*Math.sin(v.y*5.4)+.024*Math.sin(v.y*13.7),1.30,v.x),(rng(i+18)-.5)*.58,Math.sin(i)*.12,(rng(i+17)-.5)*.55,(rng(i+19)-.5)*.55,(rng(i+20)-.5)*.38]);
  function update(p,camera){
  let idx=0;while(idx<knots.length-2&&p>knots[idx+1])idx++;const h=knots[idx+1]-knots[idx], f=clamp((p-knots[idx])/h,0,1);const f2=f*f,f3=f2*f;
  const settle=(2*f3-3*f2+1)*idx/8+(f3-2*f2+f)*h*speeds[idx]+(-2*f3+3*f2)*(idx+1)/8+(f3-f2)*h*speeds[idx+1];
@@ -98,7 +107,9 @@ export function createSequence(){
  camera.lookAt(mix(-2.35,.35,focus)-hero*.35,mix(.9,1.65,focus)+hero*.28,0);camera.fov=mix(40,31,smooth(.77,.96,p));
  if(camera.aspect<1){camera.position.addScaledVector(camera.position.clone().sub(new T.Vector3(.35,1.65,0)).normalize(),(1-camera.aspect)*3.5);camera.fov=48};camera.updateProjectionMatrix();
  screenMat.uniforms.progress.value=p;photoUniforms.progress.value=p;glow.intensity=3+smooth(.13,.3,p)*2;
- key.intensity=16+smooth(.25,.65,p)*29;rim.intensity=8+smooth(.3,.75,p)*18;
+ const bodyLight=smooth(.25,.43,p);
+ key.intensity=26+bodyLight*64;key.target.position.set(mix(-2.35,1,bodyLight),mix(.9,1.7,bodyLight),0);
+ rim.intensity=8+smooth(.3,.65,p)*34;fill.intensity=smooth(.28,.45,p)*54;
  points.forEach((target,i)=>{
  const [r,delay,sourceFlag]=assembly[i];
  // Lower body locks first; the chest/arms are legible during the shared 42–55% shot.
@@ -110,13 +121,15 @@ export function createSequence(){
  const pass=foreground[i]?smooth(.27,.34,p)*(1-smooth(.36,.46,p)):0;
  dummy.position.z+=pass*.75;dummy.position.x-=pass*.20;
  // Residual breakdown is localized on the figure's right edge, rather than random holes.
- const edge=smooth(.89+.09*Math.sin(target.y*8)+.05*Math.sin(target.y*19),1.28,target.x),residual=smooth(.78,.97,p)*edge*(r>.20?1:0);
- dummy.position.x+=residual*(.10+r*.90);dummy.position.z+=residual*.22;
- dummy.position.y+=residual*Math.sin(i)*.045;
- dummy.rotation.set((1-form)*r*1.6,(1-form)*r*2.1,(1-form)*r*.8);
+ const traits=shardTraits[i],residual=smooth(.78,.97,p)*traits[0]*(r>.20?1:0);
+ dummy.position.x+=residual*(.10+r*.90);dummy.position.z+=residual*traits[1];
+ dummy.position.y+=residual*traits[2];
+ dummy.rotation.set((1-form)*r*1.6+residual*traits[3],(1-form)*r*2.1+residual*traits[4],(1-form)*r*.8+residual*traits[5]);
  const size=smooth(.19+r*.025,.23+r*.025,p)*mix(.52,1,form);
  const physical=smooth(.965,1,form)*(1-smooth(.10,.17,residual));
- dummy.scale.set(size*(1-physical*.98)*(1+residual*r*2.2),size*(1-physical*.98)*(1-residual*.38),size*(1-physical*.98));dummy.updateMatrix();body.setMatrixAt(i,dummy.matrix);
+ // Every fragment participates in construction; only the late airborne side thins out.
+ const airborne=1-smooth(.08,.32,residual)*(r>.78?0:1),fragmentSize=size*(1-physical*.98)*airborne;
+ dummy.scale.set(fragmentSize*(1+residual*r*.65),fragmentSize*(1-residual*.45),fragmentSize*(1-residual*.72));dummy.updateMatrix();body.setMatrixAt(i,dummy.matrix);
  });body.instanceMatrix.needsUpdate=true;
  cards.forEach((m,i)=>{
   const r=rng(i+90),flight=smooth(.18+i*.003,.39+i*.004,p);
@@ -124,11 +137,12 @@ export function createSequence(){
   const t=flight*(.12+r*.64),v=streamCurve.getPoint(t);
   m.position.copy(v);m.position.y+=(rng(i+80)-.5)*.23*(1-t);m.position.z+=(rng(i+40)-.5)*.18;
   m.rotation.set(flight*(r-.5)*.30,flight*(r-.5)*.55,flight*(rng(i+33)-.5)*.32);
-  const birth=smooth(.18+i*.003,.23+i*.003,p),breakup=1-smooth(.32+i*.003,.405+i*.003,p);
+  const readable=i===3||i===6||i===9||i===15;
+  const birth=smooth(.18+i*.003,.23+i*.003,p),breakup=1-smooth(readable?.40:.32+i*.003,readable?.54:.405+i*.003,p);
   const final=smooth(.79+i*.002,.94+i*.002,p);
-  const destination=new T.Vector3(1.30+r*.92,.16+rng(i+101)*3.08,.14+(rng(i+104)-.5)*.50);
+  const destination=new T.Vector3(1.58+r*1.04,.16+rng(i+101)*3.08,.14+(rng(i+104)-.5)*.50);
   m.position.lerp(destination,final);m.rotation.y=mix(m.rotation.y,.18+(r-.5)*.42,final);
-  m.scale.setScalar(birth*breakup*mix(.75,.38,t)+final*(.19+r*.21));m.material.opacity=clamp(birth*breakup+final*.78,0,1);
+  m.scale.setScalar(birth*breakup*mix(.75,.38,t)+final*(.32+r*.40));m.material.opacity=clamp(birth*breakup+final*.74,0,1);
  });
  }
  if(typeof window==='undefined')readyResolve();

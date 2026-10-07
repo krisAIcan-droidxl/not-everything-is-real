@@ -13,7 +13,7 @@ const snapshot=p=>{s.update(p,camera);return new Float32Array(s.body.instanceMat
 const checkpoints=[0,.18,.28,.42,.47,.55,.68,.80,.90,.94,.96,1];
 const forward=new Map(checkpoints.map(p=>[p,snapshot(p)]));
 for(const p of [...checkpoints].reverse())assert.deepEqual(snapshot(p),forward.get(p),`reverse state ${p}`);
-const sceneState=p=>{s.update(p,camera);return {camera:[...camera.position.toArray(),...camera.quaternion.toArray(),camera.fov],cards:s.cards.map(m=>[...m.position.toArray(),...m.rotation.toArray(),...m.scale.toArray(),m.material.opacity]),lights:s.scene.children.filter(o=>o.isLight).map(o=>o.intensity),crt:s.screenMat.uniforms.progress.value,human:s.photoUniforms.progress.value}};
+const sceneState=p=>{s.update(p,camera);return {camera:[...camera.position.toArray(),...camera.quaternion.toArray(),camera.fov],cards:s.cards.map(m=>[...m.position.toArray(),...m.rotation.toArray(),...m.scale.toArray(),m.material.opacity]),lights:s.scene.children.filter(o=>o.isLight).map(o=>[o.intensity,...o.position.toArray(),...(o.target?.position.toArray()??[])]),crt:s.screenMat.uniforms.progress.value,human:s.photoUniforms.progress.value}};
 const states=new Map(checkpoints.map(p=>[p,sceneState(p)]));
 for(const p of [...checkpoints].reverse())assert.deepEqual(sceneState(p),states.get(p),`complete reverse scene state ${p}`);
 assert(s.physicalHuman.geometry.attributes.position.count/3<30000,'bounded photographic surface triangle count');
@@ -60,6 +60,10 @@ for(const p of [.42,.47,.55]){
  assert(nearSource>100,`visible source stream at ${p}`);
  assert(formed>s.points.length*.20,`recognizable target formation at ${p}`);
 }
+// Late density is controlled separately from the construction, so no solid wall remains.
+s.update(1,camera);let lateFragments=0;
+for(let i=0;i<s.body.count;i++){s.body.getMatrixAt(i,matrix);if(Math.hypot(...matrix.elements.slice(0,3))>.08)lateFragments++;}
+assert(lateFragments>400&&lateFragments<1600,'bounded late airborne fragment density');
 // Leg/neck/arm connectivity: anatomical target cannot contain detached joint islands.
 const ids=new Set(s.points.map(v=>`${Math.round((v.x-1)/BODY_STEP)},${Math.round(v.y/BODY_STEP)},${Math.round(v.z/BODY_STEP)}`));
 const pending=new Set(ids),components=[];
