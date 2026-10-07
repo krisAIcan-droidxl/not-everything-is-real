@@ -7,9 +7,10 @@ export function createSequence(){
  const scene=new T.Scene();scene.background=new T.Color('#030405');scene.fog=new T.FogExp2('#030405',.035);
  const grey=new T.MeshStandardMaterial({color:'#343431',roughness:.72});
  const trim=new T.MeshStandardMaterial({color:'#101313',roughness:.3,metalness:.25});
- const mesh=(geo,mat,pos,scale,parent=scene)=>{const m=new T.Mesh(geo,mat);m.position.set(...pos);if(scale)m.scale.set(...scale);parent.add(m);return m};
+ let currentParent=scene;
+ const mesh=(geo,mat,pos,scale,parent=currentParent)=>{const m=new T.Mesh(geo,mat);m.position.set(...pos);if(scale)m.scale.set(...scale);parent.add(m);return m};
  const box=(s,r=.05)=>new RoundedBoxGeometry(...s,3,r);
- const tv=new T.Group();tv.position.set(-2.35,.87,0);scene.add(tv);
+ const tv=new T.Group();tv.position.set(-2.35,.87,0);scene.add(tv);currentParent=tv;
  mesh(box([1.8,1.42,1.48],.12),grey,[0,0,-.32]);
  mesh(box([1.76,1.36,.18],.08),trim,[0,0,.43]);
  mesh(box([1.31,1.08,.13],.15),grey,[-.16,.03,.54]);
@@ -25,6 +26,7 @@ export function createSequence(){
  const led=mesh(new T.SphereGeometry(.018,8,8),new T.MeshBasicMaterial({color:'#c64735'}),[.64,-.58,.56]);
  for(const x of [-.6,.6])mesh(box([.17,.16,.85]),trim,[x,-.77,-.3]);
  for(let i=0;i<12;i++)mesh(new T.BoxGeometry(.015,.35,.02),trim,[-.65+i*.115,.16,-1.071]);
+ currentParent=scene;
  const floor=mesh(new T.PlaneGeometry(100,100),new T.MeshStandardMaterial({color:'#151717',roughness:.94}),[0,0,0]);floor.rotation.x=-Math.PI/2;floor.name="floor";
  scene.add(new T.HemisphereLight('#9dadae','#15110e',.7));
  const key=new T.SpotLight('#c8c9c4',65,25,.55,.7,1.5);key.position.set(-3,7,4);key.target.position.set(-1,1,0);scene.add(key,key.target);
