@@ -45,6 +45,13 @@ for(const aspect of [1440/900,1200/900,390/844])for(const p of [.42,.47,.55,.94,
   assert((1-tv[3])/2>.515,`CRT below dominant typography at ${p}`);
  }
 }
+// The origin corridor must remain populated while the majority forms the body.
+for(const p of [.42,.47,.55]){
+ s.update(p,camera);let nearSource=0,formed=0;
+ for(let i=0;i<s.points.length;i++){s.body.getMatrixAt(i,matrix);position.setFromMatrixPosition(matrix);if(position.x<-1.4)nearSource++;if(position.distanceTo(s.points[i])<.035)formed++}
+ assert(nearSource>100,`visible source stream at ${p}`);
+ assert(formed>s.points.length*.20,`recognizable target formation at ${p}`);
+}
 // Leg/neck/arm connectivity: anatomical target cannot contain detached joint islands.
 const ids=new Set(s.points.map(v=>`${Math.round((v.x-1)/BODY_STEP)},${Math.round(v.y/BODY_STEP)},${Math.round(v.z/BODY_STEP)}`));
 const pending=new Set(ids),components=[];

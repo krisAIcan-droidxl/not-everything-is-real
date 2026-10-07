@@ -75,7 +75,8 @@ export function createSequence(){
  // Lower body locks first; the chest/arms are legible during the shared 42–55% shot.
  const delay=height*.135+r*.017;
  const fly=smooth(.19+r*.025,.32+r*.03,p);
- const form=smooth(.265+delay,.425+delay,p);
+ const keepSource=target.x>1.15&&r>.60;
+ const form=keepSource?smooth(.55+r*.015,.745+r*.015,p):smooth(.265+delay,.425+delay,p);
  dummy.position.copy(sources[i]).lerp(mids[i],fly).lerp(target,form);
  // Sparse foreground pieces are assigned to the outside shoulder, not the face/chest.
  const pass=foreground[i]?smooth(.27,.34,p)*(1-smooth(.36,.46,p)):0;
