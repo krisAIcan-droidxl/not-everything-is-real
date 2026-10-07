@@ -100,11 +100,10 @@ export function createSequence(){
  screenMat.uniforms.progress.value=p;photoUniforms.progress.value=p;glow.intensity=3+smooth(.13,.3,p)*2;
  key.intensity=16+smooth(.25,.65,p)*29;rim.intensity=8+smooth(.3,.75,p)*18;
  points.forEach((target,i)=>{
- const r=rng(i+3),height=target.y/3.36;
+ const [r,delay,sourceFlag]=assembly[i];
  // Lower body locks first; the chest/arms are legible during the shared 42–55% shot.
- const delay=height*.085+r*.015+smooth(2.8,3.36,target.y)*.05;
  const fly=smooth(.19+r*.025,.32+r*.03,p);
- const keepSource=target.x>1.15&&r>.60;
+ const keepSource=sourceFlag===1;
  const form=keepSource?smooth(.55+r*.015,.745+r*.015,p):smooth(.245+delay,.395+delay,p);
  dummy.position.copy(sources[i]).lerp(mids[i],fly).lerp(target,form);
  // Sparse foreground pieces are assigned to the outside shoulder, not the face/chest.

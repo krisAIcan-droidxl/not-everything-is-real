@@ -32,7 +32,8 @@ vec3 photoAt(vec3 pos,vec3 normal){
 }
 `;
 export function formationParameters(target,r){
- const delay=target.y/3.36*.085+r*.015+T.MathUtils.smootherstep(target.y,2.8,3.36)*.05;
+ const armDelay=Math.abs(target.x-1)>.42&&target.y>1.3&&target.y<2.8?.05:0;
+ const delay=target.y/3.36*.085+r*.015+T.MathUtils.smootherstep(target.y,2.8,3.36)*.05+armDelay;
  return [r,delay,target.x>1.15&&r>.60?1:0];
 }
 export function clothedSurface(){
