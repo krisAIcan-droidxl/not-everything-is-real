@@ -59,7 +59,7 @@ export function createSequence(){
  const knots=[0,.18,.28,.47,.58,.68,.77,.88,1];
  const speeds=knots.map((v,i)=>i===0||i===knots.length-1?0:2/((knots[i]-knots[i-1])*8+(knots[i+1]-knots[i])*8));
  const sources=points.map((_,i)=>new T.Vector3(-2.51+(rng(i+6)-.5)*.95,.9+(rng(i+7)-.5)*.75,.70));
- const mids=points.map((_,i)=>new T.Vector3(mix(-1.5,1.5,rng(i+2)),.3+rng(i+5)*3.6,.7+rng(i+8)*2.0));
+ const mids=points.map((_,i)=>new T.Vector3(mix(-1.5,1.5,rng(i+2)),.3+rng(i+5)*3.6,.7+rng(i+8)*1.1));
  function update(p,camera){
  let idx=0;while(idx<knots.length-2&&p>knots[idx+1])idx++;const h=knots[idx+1]-knots[idx], f=clamp((p-knots[idx])/h,0,1);const f2=f*f,f3=f2*f;
  const settle=(2*f3-3*f2+1)*idx/8+(f3-2*f2+f)*h*speeds[idx]+(-2*f3+3*f2)*(idx+1)/8+(f3-f2)*h*speeds[idx+1];
@@ -67,7 +67,7 @@ export function createSequence(){
  screenMat.uniforms.progress.value=p;glow.intensity=3+smooth(.13,.3,p)*2;
  points.forEach((target,i)=>{
  const r=rng(i+3),delay=target.y/3.35*.22+r*.075;
- const fly=smooth(.20+r*.035,.42+r*.055,p);const form=smooth(.36+delay,.59+delay,p);
+ const fly=smooth(.20+r*.035,.42+r*.055,p);const form=smooth(.29+delay,.49+delay,p);
  const src=sources[i];
  const mid=mids[i];
  dummy.position.copy(src).lerp(mid,fly).lerp(target,form);
