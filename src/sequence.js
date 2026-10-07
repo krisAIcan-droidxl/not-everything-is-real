@@ -25,7 +25,7 @@ export function createSequence(){
  const led=mesh(new T.SphereGeometry(.018,8,8),new T.MeshBasicMaterial({color:'#c64735'}),[.64,-.58,.56]);
  for(const x of [-.6,.6])mesh(box([.17,.16,.85]),trim,[x,-.77,-.3]);
  for(let i=0;i<12;i++)mesh(new T.BoxGeometry(.015,.35,.02),trim,[-.65+i*.115,.16,-1.071]);
- const floor=mesh(new T.PlaneGeometry(100,100),new T.MeshStandardMaterial({color:'#151717',roughness:.94}),[0,0,0]);floor.rotation.x=-Math.PI/2;
+ const floor=mesh(new T.PlaneGeometry(100,100),new T.MeshStandardMaterial({color:'#151717',roughness:.94}),[0,0,0]);floor.rotation.x=-Math.PI/2;floor.name="floor";
  scene.add(new T.HemisphereLight('#9dadae','#15110e',.7));
  const key=new T.SpotLight('#c8c9c4',65,25,.55,.7,1.5);key.position.set(-3,7,4);key.target.position.set(-1,1,0);scene.add(key,key.target);
  const rim=new T.PointLight('#8bacb5',19,12,2);rim.position.set(2.5,4,-3);scene.add(rim);
