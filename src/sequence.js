@@ -1,6 +1,7 @@
 import * as T from 'three';
 import {humanTargets,BODY_STEP} from './anatomy.js';
 import {clothedSurface,formationParameters,photographicMaterial} from './human-material.js';
+import {broadcastMaterial} from './media-material.js';
 import {createEnvironment} from './environment.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 const clamp=T.MathUtils.clamp, mix=T.MathUtils.lerp;
@@ -27,7 +28,21 @@ export function createSequence(){
  mesh(box([1.31,1.08,.13],.15),grey,[-.16,.03,.54]);
  const screenGeo=new T.PlaneGeometry(1.13,.87,32,24);const pa=screenGeo.attributes.position;
  for(let i=0;i<pa.count;i++){const x=pa.getX(i),y=pa.getY(i);pa.setZ(i,.09*(1-(x/.61)**2)*(1-(y/.49)**2))}screenGeo.computeVertexNormals();
- const screenMat=new T.ShaderMaterial({uniforms:{progress:{value:0}},vertexShader:'varying vec2 vUv; void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',fragmentShader:`varying vec2 vUv;uniform float progress;float hash(vec2 p){return fract(sin(dot(p,vec2(12.9898,78.233)))*43758.5453);}void main(){vec2 u=vUv;float scan=.72+.28*sin(u.y*590.);float n=hash(floor(u*vec2(360.,240.))+floor(progress*260.));float roll=exp(-pow((u.y-fract(progress*7.))*25.,2.));float edge=smoothstep(.0,.13,u.x)*smoothstep(.0,.13,1.-u.x)*smoothstep(.0,.13,u.y)*smoothstep(.0,.13,1.-u.y);vec3 c=vec3(.39,.46,.44)*(.2+n*.55+roll*.25)*scan*edge;gl_FragColor=vec4(c,1.);}`});
+ const signalClock={value:0};
+ const mediaAtlas={value:loadTexture('/assets/broadcast-atlas.webp')};mediaAtlas.value.anisotropy=8;
+ const screenMat=new T.ShaderMaterial({uniforms:{progress:{value:0},signalClock,mediaAtlas},vertexShader:'varying vec2 vUv; void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',fragmentShader:`varying vec2 vUv;uniform float progress,signalClock;uniform sampler2D mediaAtlas;
+ float hash(vec2 p){return fract(sin(dot(p,vec2(12.9898,78.233)))*43758.5453);}
+ void main(){vec2 u=vUv;float tick=floor(signalClock*30.);float instability=smoothstep(.08,.28,progress);
+ float tear=step(.965,hash(vec2(floor(u.y*36.),tick)));u.x+=tear*instability*.045;
+ float scan=.80+.20*sin(u.y*680.+signalClock*2.);float n=hash(floor(u*vec2(520.,390.))+vec2(tick,tick*1.37));
+ float roll=exp(-pow((u.y-fract(signalClock*.17))*30.,2.));float edge=smoothstep(0.,.09,u.x)*smoothstep(0.,.09,1.-u.x)*smoothstep(0.,.09,u.y)*smoothstep(0.,.09,1.-u.y);
+ vec3 c=vec3(.47,.52,.53)*(.15+n*.73+roll*.16)*scan;
+ float broadcast=smoothstep(.14,.24,progress)*(1.-smoothstep(.32,.48,progress));
+ float upper=1.-mod(floor(signalClock*.225),2.);vec2 origin=vec2(mod(floor(signalClock*.45),2.)*.5,upper*.52734375);
+ vec3 news=texture2D(mediaAtlas,origin+clamp(u,vec2(.004),vec2(.996))*vec2(.5,mix(.52734375,.47265625,upper))).rgb;
+ c=mix(c,news*scan,broadcast*(.48+tear*.30));c*=edge*(.94+.06*sin(signalClock*23.));gl_FragColor=vec4(c,1.);
+ #include <colorspace_fragment>
+ }`});
  mesh(screenGeo,screenMat,[-.16,.03,.625]);
  // Reflected strip on convex glass, physical switches and speaker grille.
  const glass=new T.MeshPhysicalMaterial({color:'#7b9994',transparent:true,opacity:.095,roughness:.12,metalness:.4});
@@ -46,7 +61,8 @@ export function createSequence(){
  const glow=new T.PointLight('#b7d2ca',3,5,2);glow.position.set(-2.5,1,1.2);scene.add(glow);
  // A dense, continuous anatomical surface is assembled from the source; no body fade.
  const points=humanTargets(),step=BODY_STEP;
- const photoUniforms={atlas:{value:loadTexture('/assets/person-atlas.webp')},progress:{value:0}};
+ const photoUniforms={mediaAtlas,clock:signalClock,atlas:{value:loadTexture('/assets/person-atlas.webp')},progress:{value:0}};
+ photoUniforms.atlas.value.anisotropy=8;
  const assembly=points.map((target,i)=>formationParameters(target,rng(i+3)));
  const bodyGeo=new T.BoxGeometry(step*1.04,step*1.04,step*1.04);
  bodyGeo.setAttribute('target',new T.InstancedBufferAttribute(new Float32Array(points.flatMap(v=>v.toArray())),3));
@@ -68,18 +84,9 @@ export function createSequence(){
  // The CRT remains a physical object with a subdued reflection, not a screen-space layer.
  const tvReflection=tv.clone();tvReflection.position.y=-tv.position.y;tvReflection.scale.y=-1;tvReflection.name='floor-reflection';
  tvReflection.traverse(o=>{if(o.material){o.material=o.material.clone();o.material.transparent=true;o.material.opacity=.20;if(o.material.color)o.material.color.multiplyScalar(.45);if(o.material.uniforms?.progress)o.material.uniforms.progress=screenMat.uniforms.progress;}});scene.add(tvReflection);
- // Generic editorial/media canvases: fictional feed, CCTV, face and advert.
- const cards=[],mediaCanvases=[];
- for(let k=0;k<6;k++){const c=document.createElement('canvas');c.width=384;c.height=256;const ctx=c.getContext('2d');ctx.fillStyle=['#d5d5cb','#192725','#a8b6af','#242927','#c2b9a7','#1b1d21'][k];ctx.fillRect(0,0,384,256);ctx.fillStyle=k%2?'#d4d8d3':'#202726';ctx.font='15px monospace';ctx.fillText(['WORLD / REPORT','CAM 04 • LIVE','YOU / YOUR FEED','IDENTITY / 017','A BETTER YOU','SIGNAL ARCHIVE'][k],18,28);
- if(k===3||k===2){ctx.beginPath();ctx.ellipse(196,117,40,54,0,0,7);ctx.fill();ctx.fillRect(139,180,115,80);ctx.fillStyle='#788581';ctx.fillRect(174,108,10,3);ctx.fillRect(206,108,10,3)}else {for(let j=0;j<4;j++){ctx.globalAlpha=.25+j*.12;ctx.fillRect(18,55+j*42, k===4?220:90+j*53,23)}ctx.globalAlpha=1;}
- for(let j=0;j<256;j+=4){ctx.fillStyle='#00000018';ctx.fillRect(0,j,384,1)}const tex=new T.CanvasTexture(c);tex.colorSpace=T.SRGBColorSpace;mediaCanvases.push({ctx,tex,k});
- for(let j=0;j<3;j++){const m=mesh(new T.PlaneGeometry(.64,.43,4,4),new T.MeshBasicMaterial({map:tex,side:T.DoubleSide,transparent:true}),[0,0,0]);cards.push(m)}}
- ready.then(()=>{const image=photoUniforms.atlas.value.image;if(typeof window==='undefined'||!image)return;
-  for(const {ctx,tex,k} of mediaCanvases){
-   // Reuse the photographic subject as fictional identity/feed/CCTV material.
-   if(k===1||k===2||k===3||k===5){ctx.fillStyle='#0b1119';ctx.fillRect(18,45,348,192);ctx.globalAlpha=.75;const source=k===5?[507,15,312,885]:[170,15,225,430];ctx.drawImage(image,...source,85,45,215,192);ctx.globalAlpha=1;ctx.fillStyle='#b7c3ce';ctx.font='10px monospace';ctx.fillText(k===1?'04 / SOURCE UNVERIFIED':'FRAME / 0081',25,228);for(let y=45;y<237;y+=4){ctx.fillStyle='#02050b28';ctx.fillRect(18,y,348,1)}tex.needsUpdate=true;}
-  }
- });
+ // Photographic broadcasts, shared texture/geometry; no placeholder feed rectangles.
+ const cards=[],cardGeometry=new T.PlaneGeometry(.72,.48);
+ for(let i=0;i<18;i++)cards.push(mesh(cardGeometry,broadcastMaterial(mediaAtlas,signalClock,i),[0,0,0]));
  const curve=new T.CatmullRomCurve3([new T.Vector3(-1.4,1.8,8.5),new T.Vector3(-2.05,1.45,5.2),new T.Vector3(.1,1.95,5),new T.Vector3(5.5,2.3,3.8),new T.Vector3(5.2,2.5,-3.8),new T.Vector3(.7,2.2,-5.5),new T.Vector3(-4.4,2.2,-2.7),new T.Vector3(1.5,1.95,7.2),new T.Vector3(2.8,1.85,6.9)],false,'catmullrom',.35);
  const knots=[0,.18,.28,.55,.63,.68,.77,.88,1];
  const speeds=knots.map((v,i)=>i===0||i===knots.length-1?0:2/((knots[i]-knots[i-1])*8+(knots[i+1]-knots[i])*8));
@@ -106,7 +113,7 @@ export function createSequence(){
  const focus=smooth(.16,.5,p);const hero=smooth(.86,.96,p);
  camera.lookAt(mix(-2.35,.35,focus)-hero*.35,mix(.9,1.65,focus)+hero*.28,0);camera.fov=mix(40,31,smooth(.77,.96,p));
  if(camera.aspect<1){camera.position.addScaledVector(camera.position.clone().sub(new T.Vector3(.35,1.65,0)).normalize(),(1-camera.aspect)*3.5);camera.fov=48};camera.updateProjectionMatrix();
- screenMat.uniforms.progress.value=p;photoUniforms.progress.value=p;glow.intensity=3+smooth(.13,.3,p)*2;
+ signalClock.value=p*12;screenMat.uniforms.progress.value=p;photoUniforms.progress.value=p;glow.intensity=3+smooth(.13,.3,p)*2;
  const bodyLight=smooth(.25,.43,p);
  key.intensity=26+bodyLight*64;key.target.position.set(mix(-2.35,1,bodyLight),mix(.9,1.7,bodyLight),0);
  rim.intensity=8+smooth(.3,.65,p)*34;fill.intensity=smooth(.28,.45,p)*54;
@@ -137,14 +144,15 @@ export function createSequence(){
   const t=flight*(.12+r*.64),v=streamCurve.getPoint(t);
   m.position.copy(v);m.position.y+=(rng(i+80)-.5)*.23*(1-t);m.position.z+=(rng(i+40)-.5)*.18;
   m.rotation.set(flight*(r-.5)*.30,flight*(r-.5)*.55,flight*(rng(i+33)-.5)*.32);
-  const readable=i===3||i===6||i===9||i===15;
-  const birth=smooth(.18+i*.003,.23+i*.003,p),breakup=1-smooth(readable?.40:.32+i*.003,readable?.54:.405+i*.003,p);
+  const readable=i%3!==1;
+  const birth=smooth(.18+i*.003,.23+i*.003,p),breakup=1-smooth(readable?.46:.32+i*.003,readable?.59:.405+i*.003,p);
   const final=smooth(.79+i*.002,.94+i*.002,p);
   const destination=new T.Vector3(1.58+r*1.04,.16+rng(i+101)*3.08,.14+(rng(i+104)-.5)*.50);
   m.position.lerp(destination,final);m.rotation.y=mix(m.rotation.y,.18+(r-.5)*.42,final);
-  m.scale.setScalar(birth*breakup*mix(.75,.38,t)+final*(.32+r*.40));m.material.opacity=clamp(birth*breakup+final*.74,0,1);
+  m.scale.setScalar(birth*breakup*mix(1.0,.66,t)+final*(.32+r*.40));m.material.opacity=clamp(birth*breakup+final*.74,0,1);m.material.uniforms.opacity.value=m.material.opacity;
  });
  }
  if(typeof window==='undefined')readyResolve();
- return {scene,update,body,points,screenMat,tv,cards,physicalHuman,photoUniforms,ready,environment};
+ const animate=time=>{signalClock.value=time};
+ return {scene,update,animate,body,points,screenMat,tv,cards,physicalHuman,photoUniforms,ready,environment};
 }

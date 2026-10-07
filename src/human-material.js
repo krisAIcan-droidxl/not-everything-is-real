@@ -6,6 +6,8 @@ import {humanDistance} from './anatomy.js';
 // Front, back and profiles are selected by the surface normal, never the camera.
 const common=`
 uniform sampler2D humanAtlas;
+uniform sampler2D mediaAtlas;
+uniform float signalClock;
 uniform float gateProgress;
 varying vec3 vHumanPosition;
 varying vec3 vHumanNormal;
@@ -26,6 +28,7 @@ vec3 photoAt(vec3 pos,vec3 normal){
  float w=pow(abs(normal.z),3.)/(pow(abs(normal.z),3.)+pow(abs(normal.x),3.)+.001);
  // Profile photographs contain the hanging arm: don't project that arm onto the trousers.
  if(pos.y<2.80&&abs(pos.x-1.)<.42)w=max(w,.88);
+ if(pos.y>2.88)w=max(w,.92);
  vec3 fallback=pos.y>2.80&&pos.y<3.27?vec3(.22,.17,.14):vec3(.032,.039,.050);
  vec3 fc=mix(fallback,face.rgb,face.a),sc=mix(fallback,side.rgb,side.a);
  return mix(sc,fc,w);
@@ -47,13 +50,13 @@ export function clothedSurface(){
  march.geometry.dispose();march.material.dispose();return geometry;
 }
 export function photographicMaterial(uniforms,{surface=false,reflection=false}={}){
- const material=new T.MeshStandardMaterial({color:'#c7ced5',roughness:.91,metalness:.04,transparent:reflection,opacity:reflection?.16:1,depthWrite:!reflection});
+ const material=new T.MeshStandardMaterial({color:'#f0f2f4',roughness:.91,metalness:.04,transparent:reflection,opacity:reflection?.16:1,depthWrite:!reflection});
  material.onBeforeCompile=shader=>{
-  shader.uniforms.humanAtlas=uniforms.atlas;shader.uniforms.gateProgress=uniforms.progress;
+  shader.uniforms.humanAtlas=uniforms.atlas;shader.uniforms.mediaAtlas=uniforms.mediaAtlas;shader.uniforms.signalClock=uniforms.clock;shader.uniforms.gateProgress=uniforms.progress;
   shader.vertexShader=shader.vertexShader.replace('#include <common>',`#include <common>\nattribute vec3 assembly;\n${surface?'':'attribute vec3 target;'}\nvarying vec3 vHumanPosition;varying vec3 vHumanNormal;varying vec3 vAssembly;`)
    .replace('#include <begin_vertex>',`#include <begin_vertex>\nvHumanPosition=${surface?'position':'target'};vHumanNormal=normal;vAssembly=assembly;`);
   shader.fragmentShader=shader.fragmentShader.replace('#include <common>',`#include <common>\n${common}`)
-   .replace('#include <color_fragment>',`#include <color_fragment>\n${surface?'if(assemblyAt(vAssembly)<.965||breakdownAt(vHumanPosition,vAssembly.x)>.16)discard;':''}\nvec3 photographed=photoAt(vHumanPosition,normalize(vHumanNormal));${surface?'diffuseColor.rgb*=photographed;':'vec3 signal=vAssembly.x>.985?vec3(.43,.12,.12):vAssembly.x>.96?vec3(.17,.41,.48):vec3(.35,.40,.45);float organized=easeGate(.4,.97,assemblyAt(vAssembly));float dissolved=breakdownAt(vHumanPosition,vAssembly.x);diffuseColor.rgb*=mix(signal,photographed,organized*(1.-dissolved*.65));'}${reflection?'diffuseColor.a*=exp(-vHumanPosition.y*1.5);':surface?'totalEmissiveRadiance+=photographed*(.24+.10*easeGate(.30,.65,gateProgress));':'totalEmissiveRadiance+=signal*dissolved*.055;'}`);
+   .replace('#include <color_fragment>',`#include <color_fragment>\n${surface?'if(assemblyAt(vAssembly)<.965||breakdownAt(vHumanPosition,vAssembly.x)>.16)discard;':''}\nvec3 photographed=photoAt(vHumanPosition,normalize(vHumanNormal));${surface?'diffuseColor.rgb*=photographed;':'float frame=floor(signalClock*12.);float cell=fract(sin(vAssembly.x*191.7)*43758.5);float upper=1.-floor(floor(cell*4.)/2.);vec2 tile=vec2(mod(floor(cell*4.),2.)*.5,upper*.52734375); vec2 imageUV=fract(vec2(vHumanPosition.y*1.8+cell,vHumanPosition.x*2.3+cell));vec3 signal=texture2D(mediaAtlas,tile+(imageUV*.976+.012)*vec2(.5,mix(.52734375,.47265625,upper))).rgb; float pulse=step(.96,fract(sin(frame+cell*117.)*43758.5));signal=mix(signal,signal.brg,pulse*.42);float organized=easeGate(.4,.97,assemblyAt(vAssembly));float dissolved=breakdownAt(vHumanPosition,vAssembly.x);diffuseColor.rgb*=mix(signal,photographed,organized*(1.-dissolved*.65));'}${reflection?'diffuseColor.a*=exp(-vHumanPosition.y*1.5);':surface?'totalEmissiveRadiance+=photographed*(.30+.12*easeGate(.30,.65,gateProgress));':'totalEmissiveRadiance+=signal*(.16+dissolved*.26);'}`);
  };
  material.customProgramCacheKey=()=>`gate02-photographic-${surface}-${reflection}`;
  return material;

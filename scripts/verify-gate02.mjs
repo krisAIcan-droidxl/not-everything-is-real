@@ -13,9 +13,15 @@ const snapshot=p=>{s.update(p,camera);return new Float32Array(s.body.instanceMat
 const checkpoints=[0,.18,.28,.42,.47,.55,.68,.80,.90,.94,.96,1];
 const forward=new Map(checkpoints.map(p=>[p,snapshot(p)]));
 for(const p of [...checkpoints].reverse())assert.deepEqual(snapshot(p),forward.get(p),`reverse state ${p}`);
-const sceneState=p=>{s.update(p,camera);return {camera:[...camera.position.toArray(),...camera.quaternion.toArray(),camera.fov],cards:s.cards.map(m=>[...m.position.toArray(),...m.rotation.toArray(),...m.scale.toArray(),m.material.opacity]),lights:s.scene.children.filter(o=>o.isLight).map(o=>[o.intensity,...o.position.toArray(),...(o.target?.position.toArray()??[])]),crt:s.screenMat.uniforms.progress.value,human:s.photoUniforms.progress.value}};
+const sceneState=p=>{s.update(p,camera);return {camera:[...camera.position.toArray(),...camera.quaternion.toArray(),camera.fov],cards:s.cards.map(m=>[...m.position.toArray(),...m.rotation.toArray(),...m.scale.toArray(),m.material.opacity]),lights:s.scene.children.filter(o=>o.isLight).map(o=>[o.intensity,...o.position.toArray(),...(o.target?.position.toArray()??[])]),crt:s.screenMat.uniforms.progress.value,signalClock:s.screenMat.uniforms.signalClock.value,mediaOpacity:s.cards.map(m=>m.material.uniforms.opacity.value),human:s.photoUniforms.progress.value}};
 const states=new Map(checkpoints.map(p=>[p,sceneState(p)]));
 for(const p of [...checkpoints].reverse())assert.deepEqual(sceneState(p),states.get(p),`complete reverse scene state ${p}`);
+// Live signal animation changes appearance only. Exact review resets the phase.
+s.update(.45,camera);const staticWorld=sceneState(.45),staticMatrices=snapshot(.45);
+s.animate(20);assert.equal(s.screenMat.uniforms.signalClock.value,20);
+assert.deepEqual(s.body.instanceMatrix.array,staticMatrices,'signal animation cannot move the body or camera');
+assert.equal(s.cards[0].material.uniforms.signalClock,s.screenMat.uniforms.signalClock,'media/CRT share one signal clock');
+assert.deepEqual(sceneState(.45),staticWorld,'review phase resets exactly after live signal animation');
 assert(s.physicalHuman.geometry.attributes.position.count/3<30000,'bounded photographic surface triangle count');
 assert(s.physicalHuman.geometry.attributes.assembly.count===s.physicalHuman.geometry.attributes.position.count,'surface assembly has per-vertex arrival state');
 assert(s.environment.debris.count===72,'bounded environment detail instances');
