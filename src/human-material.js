@@ -28,10 +28,13 @@ vec3 photoAt(vec3 pos,vec3 normal){
  float w=pow(abs(normal.z),3.)/(pow(abs(normal.z),3.)+pow(abs(normal.x),3.)+.001);
  // Profile photographs contain the hanging arm: don't project that arm onto the trousers.
  if(pos.y<2.80&&abs(pos.x-1.)<.42)w=max(w,.88);
- if(pos.y>2.88)w=max(w,.92);
+ // Use the profile photograph at the head sides: front projection stretches faces during orbit.
+ if(pos.y>2.88)w=easeGate(.30,.78,abs(normal.z));
  vec3 fallback=pos.y>2.80&&pos.y<3.27?vec3(.22,.17,.14):vec3(.032,.039,.050);
  vec3 fc=mix(fallback,face.rgb,face.a),sc=mix(fallback,side.rgb,side.a);
- return mix(sc,fc,w);
+ vec3 color=mix(sc,fc,w);
+ float luminance=dot(color,vec3(.2126,.7152,.0722));
+ return clamp(color+(color-vec3(luminance))*.08,vec3(0.),vec3(1.));
 }
 `;
 export function formationParameters(target,r){
@@ -40,7 +43,7 @@ export function formationParameters(target,r){
  return [r,delay,target.x>1.15&&r>.60?1:0];
 }
 export function clothedSurface(){
- const n=64,march=new MarchingCubes(n,new T.MeshBasicMaterial(),false,false,30000);march.isolation=0;
+ const n=88,march=new MarchingCubes(n,new T.MeshBasicMaterial(),false,false,60000);march.isolation=0;
  for(let z=0;z<n;z++)for(let y=0;y<n;y++)for(let x=0;x<n;x++)march.field[x+y*n+z*n*n]=-humanDistance((x/n*2-1)*.80,(y/n*2-1)*1.85+1.70,(z/n*2-1)*.42);
  march.update();
  const geometry=new T.BufferGeometry();

@@ -1,7 +1,7 @@
 import * as T from 'three';
 import {humanTargets,BODY_STEP} from './anatomy.js';
 import {clothedSurface,formationParameters,photographicMaterial} from './human-material.js';
-import {broadcastMaterial} from './media-material.js';
+import {broadcastMaterial,signalFilamentMaterial} from './media-material.js';
 import {createEnvironment} from './environment.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 const clamp=T.MathUtils.clamp, mix=T.MathUtils.lerp;
@@ -64,10 +64,10 @@ export function createSequence(){
  const photoUniforms={mediaAtlas,clock:signalClock,atlas:{value:loadTexture('/assets/person-atlas.webp')},progress:{value:0}};
  photoUniforms.atlas.value.anisotropy=8;
  const assembly=points.map((target,i)=>formationParameters(target,rng(i+3)));
- const bodyGeo=new T.BoxGeometry(step*1.04,step*1.04,step*1.04);
+ const bodyGeo=new T.PlaneGeometry(step*3.8,step*.65);
  bodyGeo.setAttribute('target',new T.InstancedBufferAttribute(new Float32Array(points.flatMap(v=>v.toArray())),3));
  bodyGeo.setAttribute('assembly',new T.InstancedBufferAttribute(new Float32Array(assembly.flat()),3));
- const body=new T.InstancedMesh(bodyGeo,photographicMaterial(photoUniforms),points.length);
+ const body=new T.InstancedMesh(bodyGeo,signalFilamentMaterial(mediaAtlas,signalClock,photoUniforms.progress),points.length);
  body.instanceMatrix.setUsage(T.DynamicDrawUsage);body.frustumCulled=false;scene.add(body);
  const dummy=new T.Object3D();
  const surfaceGeo=clothedSurface(),surfacePos=surfaceGeo.attributes.position;
@@ -86,7 +86,7 @@ export function createSequence(){
  tvReflection.traverse(o=>{if(o.material){o.material=o.material.clone();o.material.transparent=true;o.material.opacity=.20;if(o.material.color)o.material.color.multiplyScalar(.45);if(o.material.uniforms?.progress)o.material.uniforms.progress=screenMat.uniforms.progress;}});scene.add(tvReflection);
  // Photographic broadcasts, shared texture/geometry; no placeholder feed rectangles.
  const cards=[],cardGeometry=new T.PlaneGeometry(.72,.48);
- for(let i=0;i<18;i++)cards.push(mesh(cardGeometry,broadcastMaterial(mediaAtlas,signalClock,i),[0,0,0]));
+ for(let i=0;i<18;i++)cards.push(mesh(cardGeometry,broadcastMaterial(mediaAtlas,signalClock,i,photoUniforms.progress),[0,0,0]));
  const curve=new T.CatmullRomCurve3([new T.Vector3(-1.4,1.8,8.5),new T.Vector3(-2.05,1.45,5.2),new T.Vector3(.1,1.95,5),new T.Vector3(5.5,2.3,3.8),new T.Vector3(5.2,2.5,-3.8),new T.Vector3(.7,2.2,-5.5),new T.Vector3(-4.4,2.2,-2.7),new T.Vector3(1.5,1.95,7.2),new T.Vector3(2.8,1.85,6.9)],false,'catmullrom',.35);
  const knots=[0,.18,.28,.55,.63,.68,.77,.88,1];
  const speeds=knots.map((v,i)=>i===0||i===knots.length-1?0:2/((knots[i]-knots[i-1])*8+(knots[i+1]-knots[i])*8));
