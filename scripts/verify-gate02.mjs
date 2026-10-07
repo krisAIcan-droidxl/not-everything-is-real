@@ -13,6 +13,14 @@ const snapshot=p=>{s.update(p,camera);return new Float32Array(s.body.instanceMat
 const checkpoints=[0,.18,.28,.42,.47,.55,.68,.80,.90,.94,.96,1];
 const forward=new Map(checkpoints.map(p=>[p,snapshot(p)]));
 for(const p of [...checkpoints].reverse())assert.deepEqual(snapshot(p),forward.get(p),`reverse state ${p}`);
+const sceneState=p=>{s.update(p,camera);return {camera:[...camera.position.toArray(),...camera.quaternion.toArray(),camera.fov],cards:s.cards.map(m=>[...m.position.toArray(),...m.rotation.toArray(),...m.scale.toArray(),m.material.opacity]),lights:s.scene.children.filter(o=>o.isLight).map(o=>o.intensity),crt:s.screenMat.uniforms.progress.value,human:s.photoUniforms.progress.value}};
+const states=new Map(checkpoints.map(p=>[p,sceneState(p)]));
+for(const p of [...checkpoints].reverse())assert.deepEqual(sceneState(p),states.get(p),`complete reverse scene state ${p}`);
+assert(s.physicalHuman.geometry.attributes.position.count/3<30000,'bounded photographic surface triangle count');
+assert(s.physicalHuman.geometry.attributes.assembly.count===s.physicalHuman.geometry.attributes.position.count,'surface assembly has per-vertex arrival state');
+assert(s.environment.debris.count===72,'bounded environment detail instances');
+s.update(0,camera);assert(s.cards.every(m=>m.material.opacity===0),'opening contains no media cloud');
+for(let i=0;i<s.body.count;i++){s.body.getMatrixAt(i,matrix);assert([0,1,2,4,5,6,8,9,10].every(j=>matrix.elements[j]===0),'body hidden at opening by unassembled geometry');}
 let prev,maximumStep=0;const times=[];
 for(let i=0;i<=1000;i++){
  const t=performance.now();s.update(i/1000,camera);times.push(performance.now()-t);
@@ -59,4 +67,4 @@ while(pending.size){const first=pending.values().next().value,queue=[first];pend
 assert(Math.max(...components)/s.points.length>.985,'connected adult silhouette');
 const src=readFileSync(new URL('../src/main.jsx',import.meta.url),'utf8');assert(src.includes('dpr={[1,1.5]}'),'DPR capped at 1.5');assert(!src.includes('scrub:'),'no second scroll smoothing layer');
 times.sort((a,b)=>a-b);
-console.log(JSON.stringify({result:'PASS',instanceCount:s.body.count,mediaFrames:s.cards.length,bodyComponents:components.length,maxCameraStepPer001:maximumStep,maxVelocityMismatch:maximumVelocityMismatch,updateCpuMedianMs:times[500],updateCpuP95Ms:times[950],dpr:'1–1.5 (configuration check; GPU validation pending)',composition},null,2));
+console.log(JSON.stringify({result:'PASS',instanceCount:s.body.count,mediaFrames:s.cards.length,physicalSurfaceTriangles:s.physicalHuman.geometry.attributes.position.count/3,environmentInstances:s.environment.debris.count,bodyComponents:components.length,maxCameraStepPer001:maximumStep,maxVelocityMismatch:maximumVelocityMismatch,updateCpuMedianMs:times[500],updateCpuP95Ms:times[950],dpr:'1–1.5 (configuration check; GPU validation pending)',composition},null,2));

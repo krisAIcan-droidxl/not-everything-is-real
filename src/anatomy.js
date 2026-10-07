@@ -3,10 +3,10 @@ import {Vector3} from 'three';
 // Dimensions in scene units; 3.36 high, approximately 7.7 heads tall.
 // Torso cross-sections and tapered, articulated limbs form one connected surface.
 const torso=[
- [1.72,.155,.135,.015],[1.84,.295,.190,-.025],
- [1.98,.315,.205,-.020],[2.13,.245,.145,.015],
- [2.30,.285,.170,.012],[2.48,.355,.205,.010],
- [2.63,.385,.175,-.010],[2.72,.335,.125,-.015],
+ [1.62,.285,.155,.015],[1.72,.335,.185,.005],[1.84,.345,.195,-.025],
+ [1.98,.345,.205,-.020],[2.13,.350,.190,.015],
+ [2.30,.375,.205,.012],[2.48,.415,.215,.010],
+ [2.63,.430,.190,-.010],[2.72,.345,.135,-.015],
  [2.81,.125,.095,-.005],[2.96,.092,.085,.015],
 ];
 const head=[
@@ -34,8 +34,9 @@ function limb(a,b,r0,r1,depth=1){
 }
 for(const sign of [-1,1]){
  // Shoulders sit on the ribcage; elbows, wrists and hands carry a slight natural bend.
- limb([sign*.35,2.68,0],[sign*.48,2.47,.008],.137,.116,.93);
- limb([sign*.43,2.59,.005],[sign*.535,2.13,-.028],.117,.082,1.04);
+ limb([sign*.35,2.68,0],[sign*.48,2.47,.008],.168,.158,1.06);
+ limb([sign*.43,2.59,.005],[sign*.535,2.23,-.028],.166,.144,1.10);
+ limb([sign*.52,2.30,-.020],[sign*.535,2.13,-.028],.089,.082,1.04);
  limb([sign*.535,2.13,-.028],[sign*.55,1.70,.065],.085,.048,.91);
  limb([sign*.55,1.73,.065],[sign*.565,1.49,.084],.063,.049,.52);
  for(let finger=0;finger<4;finger++){
@@ -44,19 +45,19 @@ for(const sign of [-1,1]){
  }
  limb([sign*.515,1.62,.09],[sign*.495,1.50,.13],.023,.015,.78);
  // Femur and tibia proportions; knees and ankles join without hourglass gaps.
- limb([sign*.175,1.87,.005],[sign*.205,1.00,.055],.151,.097,1.10);
- limb([sign*.205,1.04,.055],[sign*.205,.90,.042],.096,.089,1.07);
- limb([sign*.205,.93,.032],[sign*.215,.20,.009],.100,.048,1.18);
- limb([sign*.215,.24,.009],[sign*.215,.105,.044],.050,.052,.95);
+ limb([sign*.175,1.87,.005],[sign*.225,1.00,.055],.184,.149,1.10);
+ limb([sign*.225,1.04,.055],[sign*.225,.90,.042],.150,.145,1.07);
+ limb([sign*.225,.93,.032],[sign*.255,.20,.009],.150,.106,1.10);
+ limb([sign*.255,.24,.009],[sign*.255,.105,.044],.106,.082,.95);
  // Heel, midfoot and toes are distinct from the lower leg in side view.
- limb([sign*.215,.095,-.065],[sign*.215,.082,.22],.078,.066,.84);
+ limb([sign*.255,.105,-.080],[sign*.255,.090,.25],.101,.091,.88);
 }
 const ellipsoids=[
  [[0,3.115,.170],[.030,.064,.044]], // nose, never a portrait requirement
  [[0,2.989,.123],[.070,.029,.031]], // chin
  [[-.167,3.145,.0],[.023,.052,.023]],[[.167,3.145,.0],[.023,.052,.023]],
 ];
-function distance(x,y,z){
+export function humanDistance(x,y,z){
  let d=Math.min(sectionDistance(x,y,z,torso),sectionDistance(x,y,z,head));
  for(const l of limbs){
   const dx=x-l.a.x,dy=y-l.a.y,dz=z-l.a.z;
@@ -71,14 +72,20 @@ function distance(x,y,z){
   d=Math.min(d,(Math.sqrt((side/r)**2+(front/(r*l.depth))**2+(cap/r)**2)-1)*r);
  }
  for(const [c,r] of ellipsoids)d=Math.min(d,(Math.sqrt(((x-c[0])/r[0])**2+((y-c[1])/r[1])**2+((z-c[2])/r[2])**2)-1)*Math.min(...r));
+ // Cloth folds alter the surface rather than drawing a mannequin's muscle groups.
+ const fabric=y>1.65&&y<2.72||y>.24&&y<1.65;
+ if(fabric)d+=.006*Math.sin(y*47+x*15)*Math.sin(z*27+x*31);
+ // Irregular curly hair cap, coherent from every orbit angle.
+ if(y>3.21){const hair=(Math.hypot(x/.215,(y-3.275)/.145,z/.185)-1)*.145;
+  d=Math.min(d,hair+.008*Math.sin(x*83)*Math.sin(z*77)*Math.sin(y*71));}
  return d;
 }
 export const BODY_STEP=.030;
 export function humanTargets(){
  const points=[];
- for(let yi=0;yi<=113;yi++)for(let xi=-21;xi<=21;xi++)for(let zi=-10;zi<=12;zi++){
+ for(let yi=0;yi<=114;yi++)for(let xi=-24;xi<=24;xi++)for(let zi=-12;zi<=13;zi++){
   const x=xi*BODY_STEP,y=yi*BODY_STEP,z=zi*BODY_STEP;
-  const d=distance(x,y,z);
+  const d=humanDistance(x,y,z);
   // Sample the UNION boundary, avoiding the internal shells of overlapping volumes.
   if(d<=.003&&d>=-BODY_STEP*.95)points.push(new Vector3(x+1,y,z));
  }
