@@ -1,11 +1,16 @@
 import * as T from 'three';
-import {createSequence} from './sequence.js';
+import {createSequence,smooth} from './sequence.js';
 import {orbitBounds} from './orbit-bounds.js';
+import {createReferenceWorld} from './reference-world.js';
 
 // Eight photographed views share one pose and one floor contact. The existing
 // world/camera/assembly remain authoritative; this replaces only the body surface.
 export function createPhotographicOrbit(){
  const s=createSequence({photographicSurface:false});
+ // The original photographic set replaces every procedural room/CRT surface.
+ s.tv.visible=false;s.environment.floor.visible=false;s.environment.debris.visible=false;
+ for(const child of s.scene.children){if(child.name==='floor-reflection'||child.name==='atmosphere'||child.geometry?.type==='TubeGeometry')child.visible=false;}
+ const referenceWorld=createReferenceWorld(s.scene);
  let resolve;const portraitReady=new Promise(r=>resolve=r);
  const atlas=typeof window==='undefined'?new T.DataTexture(new Uint8Array([0,0,0,0]),1,1):new T.TextureLoader().load('/assets/orbit-person-atlas.webp',resolve);
  if(typeof window==='undefined')resolve();
@@ -65,6 +70,19 @@ export function createPhotographicOrbit(){
  // Remove the superseded surface/reflection, keeping CRT reflection and particles.
  for(const child of s.scene.children)if(child.name==='floor-reflection'&&child.geometry===s.physicalHuman.geometry)child.visible=false;
  const originalUpdate=s.update;
- const update=(p,camera)=>{originalUpdate(p,camera);const theta=Math.atan2(camera.position.x-1,camera.position.z);uniforms.angle.value=((theta/(Math.PI*2)*8)%8+8)%8;uniforms.progress.value=p;human.rotation.y=theta;reflection.rotation.y=theta;};
- return {...s,update,ready:Promise.all([s.ready,portraitReady]),human,portraitUniforms:uniforms,mode:'photographic-orbit'};
+ const sourceDelta=new T.Vector3(),sourceOrigin=new T.Vector3(-2.51,.92,.71),glass=new T.Vector3(.17,.04,0),scratch=new T.Matrix4();
+ const worldReference=()=>{referenceWorld.television.updateMatrixWorld();sourceDelta.copy(glass).applyMatrix4(referenceWorld.television.matrixWorld).sub(sourceOrigin);};
+ const update=(p,camera)=>{originalUpdate(p,camera);
+ // Frame the photographed CRT at hero scale, then open up continuously for causality.
+ const opening=1-smooth(.14,.28,p);
+ if(opening>0){const center=new T.Vector3(-2.35,.86,.18);const near=center.clone().add(new T.Vector3(.27,.35,3.25-.28*smooth(0,.12,p)));camera.position.lerp(near,opening);const focus=new T.Vector3().addVectors(camera.position,camera.getWorldDirection(new T.Vector3()).multiplyScalar(5));focus.lerp(center,opening);camera.lookAt(focus);camera.updateProjectionMatrix();}
+ const hero=smooth(.86,.98,p);
+ if(hero>0){const focus=camera.position.clone().add(camera.getWorldDirection(new T.Vector3()).multiplyScalar(8));focus.lerp(new T.Vector3(0,1.62,0),hero);camera.lookAt(focus);camera.fov=T.MathUtils.lerp(camera.fov,27,hero);camera.updateProjectionMatrix();}
+ referenceWorld.update(p,camera);worldReference();
+ const assembly=s.body.geometry.attributes.assembly;
+ for(let i=0;i<s.body.count;i++){const r=assembly.getX(i),delay=assembly.getY(i),sourceFlag=assembly.getZ(i);const fly=smooth(.19+r*.025,.32+r*.03,p);const form=sourceFlag===1?smooth(.55+r*.015,.745+r*.015,p):smooth(.245+delay,.395+delay,p);const w=(1-form)*(1-fly*.6);s.body.getMatrixAt(i,scratch);scratch.elements[12]+=sourceDelta.x*w;scratch.elements[13]+=sourceDelta.y*w;scratch.elements[14]+=sourceDelta.z*w;s.body.setMatrixAt(i,scratch);}
+ s.body.instanceMatrix.needsUpdate=true;
+ s.cards.forEach((card,i)=>{const flight=smooth(.18+i*.003,.39+i*.004,p),final=smooth(.79+i*.002,.94+i*.002,p);card.position.addScaledVector(sourceDelta,(1-final)*(1-flight*.8));});
+ const theta=Math.atan2(camera.position.x-1,camera.position.z);uniforms.angle.value=((theta/(Math.PI*2)*8)%8+8)%8;uniforms.progress.value=p;human.rotation.y=theta;reflection.rotation.y=theta;};
+ return {...s,update,ready:Promise.all([s.ready,portraitReady,referenceWorld.ready]),animate:time=>{s.animate(time);referenceWorld.animate(time)},referenceWorld,human,portraitUniforms:uniforms,mode:'photographic-orbit'};
 }

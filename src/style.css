@@ -24,23 +24,12 @@
 .load-track::after{content:'';display:block;height:2px;background:#bfcbd2;transform-origin:left;transform:scaleX(var(--loading,0))}
 @media(max-width:700px){.hud{top:12vh}.hud>span{font-size:8px}.title{margin-top:11vh}.title b{font-size:15vw}.title em{font-size:6vw;letter-spacing:.40em}.claim{margin-top:16px;padding:7px 9px;font-size:7px;letter-spacing:.12em}.load-status{min-width:120px}.load-track{width:120px}.bottom>span{max-width:30vw;line-height:1.6}}
 
-/* Original approved endpoints: preserve complete panels and original aspect ratio.
-   The intermediate film continues underneath; blends are scroll-reversible. */
-.reference-frames{position:absolute;inset:0;pointer-events:none;z-index:3}
-.reference-frame{position:absolute;inset:0;background:#000;display:flex;align-items:center;justify-content:center}
-.reference-start{opacity:var(--start-frame,1)}
-.reference-end{opacity:var(--end-frame,0)}
-.reference-panel{position:relative;overflow:hidden;flex:none}
-.reference-start .reference-panel{width:min(100vw,74.652778svh);aspect-ratio:645/864}
-.reference-end .reference-panel{width:min(100vw,102.546296svh);aspect-ratio:886/864}
-.reference-panel img{position:absolute;top:0;height:100%;max-width:none;width:auto;display:block}
-.reference-start img{left:0}
-.reference-end img{right:0}
-.reference-snow{position:absolute;left:38.6%;top:40.5%;width:29.6%;height:22.1%;border-radius:13%;opacity:.18;mix-blend-mode:screen;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='128' height='128'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='1' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");animation:reference-snow .24s steps(4,end) infinite}
-@keyframes reference-snow{0%{background-position:0 0}25%{background-position:31px 17px}50%{background-position:-27px 53px}75%{background-position:61px -19px}}
-.frame-review-mode .reference-snow{opacity:0;animation:none}
 .stage>.journey-label,.stage>.hud,.stage>.bottom,.stage>.scroll,.stage>.failure{opacity:calc(var(--film-ui,1)*var(--hero,1))}
 .stage>.journey-label,.stage>.bottom{opacity:var(--film-ui,1)}
 .stage>.scroll{opacity:calc(var(--film-ui,1)*(1 - min(1,var(--p,0)*8)))}
 .stage>.failure{opacity:calc(var(--film-ui,1)*var(--glitch,0))}
-@media(prefers-reduced-motion:reduce){.reference-snow{animation:none}}
+
+
+/* One persistent photographic world, covering the entire hero at every progress. */
+.stage>.hud{opacity:1;transform:none}
+.hud .title,.hud .claim{opacity:var(--hero,0)}
